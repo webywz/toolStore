@@ -1,0 +1,57 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: toolstore-app
+    restart: unless-stopped
+    env_file:
+      - .env.server
+    ports:
+      - "80:8000"
+    volumes:
+      - toolstore_uploads:/app/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      qdrant:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: toolstore-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - toolstore_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: toolstore-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - toolstore_redis:/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: toolstore-qdrant
+    restart: unless-stopped
+    volumes:
+      - toolstore_qdrant:/qdrant/storage
+
+volumes:
+  toolstore_postgres:
+  toolstore_redis:
+  toolstore_qdrant:
+  toolstore_uploads:

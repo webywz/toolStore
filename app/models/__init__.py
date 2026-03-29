@@ -1,0 +1,31 @@
+from app.models.entities import (
+    AIChatFeedback,
+    AIConversation,
+    AIConversationMessage,
+    AIRecognition,
+    AIRecognitionFeedback,
+    Category,
+    KnowledgeJob,
+    KnowledgeVersionSnapshot,
+    Product,
+    ProductKnowledge,
+    SearchHistory,
+    User,
+    UserFavorite,
+)
+
+__all__ = [
+    "AIChatFeedback",
+    "AIConversation",
+    "AIConversationMessage",
+    "AIRecognition",
+    "AIRecognitionFeedback",
+    "Category",
+    "KnowledgeJob",
+    "KnowledgeVersionSnapshot",
+    "Product",
+    "ProductKnowledge",
+    "SearchHistory",
+    "User",
+    "UserFavorite",
+]

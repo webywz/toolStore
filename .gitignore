@@ -1,0 +1,13 @@
+.env
+deploy/.env.server
+deploy/.deploy.env
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+.DS_Store
+data/
+test.db
+tool_store.db
+mobile_app/.dart_tool/
+mobile_app/build/
