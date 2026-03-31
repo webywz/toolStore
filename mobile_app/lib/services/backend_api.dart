@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../models/app_models.dart';
 import '../theme/app_theme.dart';
@@ -35,8 +36,7 @@ class BackendApi {
 
   final String _baseUrl;
   final VoidCallback? onUnauthorized;
-  final HttpClient _client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 10);
+  final http.Client _client = http.Client();
   final Map<int, Product> _productCache = <int, Product>{};
   final Map<int, CategoryItem> _categoryCache = <int, CategoryItem>{};
 
@@ -840,24 +840,23 @@ class BackendApi {
     bool requiresAuth = true,
   }) async {
     final uri = Uri.parse('$_baseUrl$path');
-    final request = await _client.openUrl(method, uri);
-    request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+    final request = http.Request(method, uri);
+    request.headers['accept'] = 'application/json';
     if (requiresAuth) {
       final token = _token;
       if (token == null || token.isEmpty) {
         throw const BackendApiException('当前未登录，无法访问受保护接口。');
       }
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      request.headers['authorization'] = 'Bearer $token';
     }
     if (body != null) {
-      request.headers.set(
-        HttpHeaders.contentTypeHeader,
-        'application/json; charset=utf-8',
-      );
-      request.write(jsonEncode(body));
+      request.headers['content-type'] = 'application/json; charset=utf-8';
+      request.body = jsonEncode(body);
     }
-    final response = await request.close();
-    final payload = await response.transform(utf8.decoder).join();
+    final response = await _client.send(request).timeout(
+      const Duration(seconds: 10),
+    );
+    final payload = await response.stream.bytesToString();
     return _decodeResponse(
       response.statusCode,
       payload,
@@ -877,39 +876,24 @@ class BackendApi {
     if (token == null || token.isEmpty) {
       throw const BackendApiException('当前未登录，无法访问受保护接口。');
     }
-    final boundary =
-        '----toolStoreBoundary${DateTime.now().microsecondsSinceEpoch}';
     final uri = Uri.parse('$_baseUrl$path');
-    final request = await _client.postUrl(uri);
-    request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-    request.headers.set(
-      HttpHeaders.contentTypeHeader,
-      'multipart/form-data; boundary=$boundary',
-    );
-
-    final builder = BytesBuilder();
-    for (final entry in fields.entries) {
-      builder.add(utf8.encode('--$boundary\r\n'));
-      builder.add(
-        utf8.encode(
-          'Content-Disposition: form-data; name="${entry.key}"\r\n\r\n${entry.value}\r\n',
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['accept'] = 'application/json'
+      ..headers['authorization'] = 'Bearer $token'
+      ..fields.addAll(fields)
+      ..files.add(
+        http.MultipartFile.fromBytes(
+          fileFieldName,
+          fileBytes,
+          filename: filename,
+          contentType: MediaType.parse(contentType),
         ),
       );
-    }
-    builder.add(utf8.encode('--$boundary\r\n'));
-    builder.add(
-      utf8.encode(
-        'Content-Disposition: form-data; name="$fileFieldName"; filename="$filename"\r\n',
-      ),
-    );
-    builder.add(utf8.encode('Content-Type: $contentType\r\n\r\n'));
-    builder.add(fileBytes);
-    builder.add(utf8.encode('\r\n--$boundary--\r\n'));
-    request.add(builder.takeBytes());
 
-    final response = await request.close();
-    final payload = await response.transform(utf8.decoder).join();
+    final response = await _client.send(request).timeout(
+      const Duration(seconds: 20),
+    );
+    final payload = await response.stream.bytesToString();
     return _decodeResponse(
       response.statusCode,
       payload,

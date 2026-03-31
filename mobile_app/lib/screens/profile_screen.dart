@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -72,11 +72,12 @@ class ProfileScreen extends StatelessWidget {
       builder: (sheetContext) {
         var submitting = false;
         XFile? selectedAvatarFile;
+        Uint8List? selectedAvatarBytes;
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-            final avatarPreview = selectedAvatarFile != null
-                ? FileImage(File(selectedAvatarFile!.path))
+            final avatarPreview = selectedAvatarBytes != null
+                ? MemoryImage(selectedAvatarBytes!)
                 : _avatarProvider(avatarController.text);
             return SafeArea(
               child: Padding(
@@ -116,7 +117,11 @@ class ProfileScreen extends StatelessWidget {
                                   maxWidth: 1024,
                                 );
                                 if (picked == null) return;
-                                setSheetState(() => selectedAvatarFile = picked);
+                                final bytes = await picked.readAsBytes();
+                                setSheetState(() {
+                                  selectedAvatarFile = picked;
+                                  selectedAvatarBytes = bytes;
+                                });
                               },
                         icon: const Icon(Icons.photo_library_rounded),
                         label: Text(

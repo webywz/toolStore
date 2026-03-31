@@ -1,0 +1,2 @@
+#!/bin/sh
+exec ruby -rlogger /Users/weize/.gem/ruby/2.6.0/bin/pod "$@"
